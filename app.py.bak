@@ -1,0 +1,129 @@
+from flask import # Initialize LangChain components
+llm = OpenAI(temperature=0.7)
+memory = ConversationBufferMemory()
+
+# Create a custom prompt template for mental health support
+prompt_template = PromptTemplate(
+    input_variables=["history", "input"],
+    template="""You are a compassionate AI assistant helping students with mental health concerns.
+    
+Previous conversation:
+{history}
+
+Current message: {input}
+Assistant Response:"""
+)
+
+# Initialize the conversation chain
+conversation = LLMChain(
+    llm=llm,
+    prompt=prompt_template,
+    memory=memory,
+    verbose=True
+)ender_template, request, jsonify
+from langchain_openai import OpenAI
+from langchain_core.prompts import PromptTemplate
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import LLMChain
+import os
+from dotenv import load_dotenv
+from datetime import datetime
+from mysql_manager import MySQLManager
+from language_handler import LanguageHandler
+
+# Load environment variables
+load_dotenv()
+
+app = Flask(__name__)
+db = MySQLManager()
+lang_handler = LanguageHandler()
+
+# Initialize LangChain conversation
+llm = OpenAI(temperature=0.7)
+memory = ConversationBufferMemory()
+conversation = ConversationChain(
+    llm=llm,
+    memory=memory,
+    verbose=True
+)
+
+@app.route('/')
+def home():
+    return render_template('index.html', resources=db.get_resources())
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    user_message = request.json.get('message', '')
+    intent = request.json.get('intent', '')
+    
+    if intent == 'check_availability':
+        counselor = request.json.get('counselor', '')
+        date_str = request.json.get('date', '')
+        try:
+            date = datetime.strptime(date_str, "%Y-%m-%d")
+            slots = db.get_available_slots(counselor, date)
+            return jsonify({
+                'type': 'availability',
+                'slots': slots,
+                'counselor': counselor
+            })
+        except ValueError:
+            return jsonify({'error': 'Invalid date format'})
+            
+    elif intent == 'book_appointment':
+        counselor = request.json.get('counselor', '')
+        slot = request.json.get('slot', '')
+        student_id = request.json.get('student_id', 'anonymous')
+        success, result = db.book_appointment(counselor, slot, student_id)
+        if success:
+            return jsonify({
+                'type': 'confirmation',
+                'appointment': result
+            })
+        else:
+            return jsonify({'error': result})
+    
+    # Process language
+    lang_info = lang_handler.process_message(user_message)
+    detected_lang = lang_info['detected_language']
+    english_message = lang_info['english_translation']
+    
+    # Check for emergency keywords in English translation
+    emergency_keywords = ['suicide', 'kill myself', 'want to die', 'end my life']
+    is_emergency = any(keyword in english_message.lower() for keyword in emergency_keywords)
+    
+    if is_emergency:
+        emergency_response = lang_handler.get_default_response('emergency', detected_lang)
+        return jsonify({'response': emergency_response, 'is_emergency': True})
+    
+    # Add mental health and language context to the conversation
+    prompt = f"""You are a compassionate AI assistant helping students with mental health concerns.
+    Remember to:
+    1. Be supportive and non-judgmental
+    2. Suggest professional help when appropriate
+    3. Maintain confidentiality
+    4. Share relevant resources from our database
+    5. Help schedule appointments when requested
+    
+    The user is speaking in {lang_info['language_name']}.
+    
+    Available counselors and their specialties:
+    {db.get_counselors()}
+    
+    User message: {english_message}"""
+    
+    # Get response from LangChain
+    response = conversation.predict(input=prompt)
+    
+    # Translate response back to user's language if not English
+    if detected_lang != 'en':
+        response = lang_handler.translate_from_english(response, detected_lang)
+    
+    return jsonify({'response': response, 'language_info': lang_info})
+
+@app.route('/counselors', methods=['GET'])
+def get_counselors():
+    return jsonify(db.get_counselors())
+
+if __name__ == '__main__':
+    app.run(debug=True)

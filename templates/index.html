@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mental Health Support Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-header">
+                <h1>Mental Health Support Chat</h1>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="message bot">
+                    Hello! I'm here to help you with mental health support. How are you feeling today?
+                </div>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="user-input" placeholder="Type your message...">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="resources-container">
+                <h2>Available Resources</h2>
+                {% for key, resource in resources.items() %}
+                <div class="resource-card">
+                    <h3>{{ resource.name }}</h3>
+                    <p>{{ resource.description }}</p>
+                    <p><strong>Contact:</strong> {{ resource.contact }}</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="appointment-container" id="appointment-container">
+                <h2>Schedule an Appointment</h2>
+                <div class="appointment-form">
+                    <select id="counselor-select">
+                        <option value="">Select a counselor...</option>
+                    </select>
+                    <input type="date" id="appointment-date" placeholder="yyyy-mm-dd">
+                    <div id="counselor-days-note" class="small-note"></div>
+                    <button onclick="checkAvailability()">Check Availability</button>
+                </div>
+                <div id="available-slots" class="available-slots">
+                    <!-- Available time slots will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
