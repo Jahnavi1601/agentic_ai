@@ -26,9 +26,28 @@ app = Flask(__name__,
             static_url_path="/static")
 CORS(app)
 
+# Define default resources
+default_resources = {
+    "emergency": {
+        "name": "Emergency Services",
+        "description": "For immediate emergency assistance",
+        "contact": "911"
+    },
+    "crisis": {
+        "name": "Crisis Hotline",
+        "description": "24/7 confidential support",
+        "contact": "1-800-273-8255"
+    },
+    "counseling": {
+        "name": "University Counseling Center",
+        "description": "Professional counseling services for students",
+        "contact": "Contact your university\'s counseling center"
+    }
+}
+
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return render_template("index.html", resources=default_resources)
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -40,6 +59,10 @@ def chat():
     except Exception as e:
         print(f"Error: {str(e)}")
         return jsonify({"response": "Could not generate response. Please try again."})
+
+@app.route("/static/<path:path>")
+def serve_static(path):
+    return send_from_directory("static", path)
 
 if __name__ == "__main__":
     app.run(debug=True)
